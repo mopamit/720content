@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>גלגל ענק אינטראקטיבי</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none; /* חיוני למניעת גלילת מסך בנייד בזמן גרירה */
+        }
+
+        .grabber {
+            cursor: grab;
+            fill: transparent;
+        }
+
+        .grabber:active {
+            cursor: grabbing;
+        }
+
+        /* אפקטים במעבר עכבר/גרירה כדי להראות שהמחוג אינטראקטיבי */
+        .grabber:hover + .needle-visual line,
+        .grabber:hover + .needle-visual polygon {
+            filter: drop-shadow(0px 0px 4px rgba(255, 255, 255, 0.8));
+            stroke-width: 6px;
+        }
+
+        .grabber:active + .needle-visual line,
+        .grabber:active + .needle-visual polygon {
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.5));
+        }
+    </style>
+</head>
+<body class="m-0 p-0 w-full h-screen overflow-hidden bg-transparent flex justify-center items-center">
+
+    <!-- חלון האפליקציה ששומר על יחס הממדים של התמונה -->
+    <div class="relative w-[350px] aspect-[4/3] flex justify-center items-center rounded-2xl overflow-hidden shadow-xl border border-gray-300 bg-white" id="ferrisContainer">
+        
+        <!-- אזור ה-SVG שמכיל את התמונה והמחוג -->
+        <!-- הורדנו את pointer-events-none כדי שהמחוג יוכל לקלוט לחיצות -->
+        <svg viewBox="0 0 600 450" id="ferrisSvg" class="w-full h-full object-contain">
+            
+            <image 
+                href="https://lomdot.education.gov.il/metodica/720active/math/methodica-math-angles-ls01-00072/assets/questions/singlechoicespinline/question-image.png" 
+                x="0" y="0" width="600" height="450" 
+                preserveAspectRatio="xMidYMid slice" 
+                id="bgImage"
+                class="pointer-events-none"
+            />
+
+            <!-- קבוצת המרכז - הותאמה למרכז הגלגל (הוזזה מעט שמאלה ולמטה) -->
+            <g id="centerGroup" transform="translate(298, 208)">
+                
+                <!-- הצללה קלה למחוג להפרדה מהרקע -->
+                <circle cx="0" cy="0" r="15" fill="rgba(255,255,255,0.4)" filter="blur(3px)" class="pointer-events-none" />
+
+                <!-- מחוג אדום נגרר -->
+                <g id="redNeedleGroup">
+                    <!-- אזור אחיזה רחב ושקוף להקלה על הגרירה -->
+                    <polygon class="grabber" points="-25,0 25,0 25,210 -25,210" />
+                    
+                    <g class="needle-visual pointer-events-none">
+                        <!-- קו המחוג היורד כלפי מטה (הוארך ל-185) -->
+                        <line x1="0" y1="0" x2="0" y2="185" stroke="#ef4444" stroke-width="5" stroke-linecap="round" />
+                        <!-- ראש החץ בתחתית המחוג (הותאם לאורך החדש) -->
+                        <polygon points="-10,180 10,180 0,200" fill="#ef4444" />
+                    </g>
+                </g>
+                
+                <!-- סיכה מרכזית אדומה (מעל המחוג) -->
+                <circle cx="0" cy="0" r="10" fill="#ef4444" class="pointer-events-none" />
+                <circle cx="0" cy="0" r="3" fill="#fca5a5" class="pointer-events-none" />
+            </g>
+        </svg>
+        
+    </div>
+
+    <script>
+        // --- הגדרות מיקום מרכז הגלגל בתוך ה-SVG ---
+        const CENTER_X = 298;
+        const CENTER_Y = 208;
+
+        // --- State ---
+        let currentAngle = 0; 
+        let isDragging = false;
+
+        // --- DOM Elements ---
+        const ferrisSvg = document.getElementById('ferrisSvg');
+        const centerGroup = document.getElementById('centerGroup');
+        const redNeedleGroup = document.getElementById('redNeedleGroup');
+
+        // מקם את המרכז על פי ההגדרות
+        centerGroup.setAttribute('transform', `translate(${CENTER_X}, ${CENTER_Y})`);
+
+        // --- Interaction Handling ---
+        function getAngle(event) {
+            // שימוש ב-SVG Point כדי לקבל המרה מדויקת של קואורדינטות בכל גודל מסך
+            const pt = ferrisSvg.createSVGPoint();
+            pt.x = CENTER_X;
+            pt.y = CENTER_Y;
+            const screenCenter = pt.matrixTransform(ferrisSvg.getScreenCTM());
+            
+            let clientX, clientY;
+            if (event.touches && event.touches.length > 0) {
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+
+            const dx = clientX - screenCenter.x;
+            const dy = clientY - screenCenter.y;
+            
+            // חישוב הזווית - מכיוון שהמחוג מצויר במקור כלפי מטה, מורידים 90 מעלות
+            let deg = Math.atan2(dy, dx) * (180 / Math.PI) - 90;
+            return deg;
+        }
+
+        function startDrag(event) {
+            event.preventDefault();
+            isDragging = true;
+            doDrag(event); // קריאה מיידית כדי להתעדכן במיקום הראשוני
+        }
+
+        function doDrag(event) {
+            if (!isDragging) return;
+            event.preventDefault();
+
+            currentAngle = getAngle(event);
+            redNeedleGroup.setAttribute('transform', `rotate(${currentAngle})`);
+        }
+
+        function stopDrag() {
+            isDragging = false;
+        }
+
+        // --- Event Listeners ---
+        const grabber = redNeedleGroup.querySelector('.grabber');
+
+        // מאזינים לאזור האחיזה השקוף שעל המחוג (עכבר ומגע)
+        grabber.addEventListener('mousedown', startDrag);
+        grabber.addEventListener('touchstart', startDrag, {passive: false});
+        
+        // מאזינים לתנועת העכבר/מגע על כל החלון כדי שלא נאבד אחיזה אם העכבר זז מהר
+        window.addEventListener('mousemove', doDrag);
+        window.addEventListener('touchmove', doDrag, {passive: false});
+        window.addEventListener('mouseup', stopDrag);
+        window.addEventListener('touchend', stopDrag);
+        window.addEventListener('touchcancel', stopDrag);
+
+    </script>
+</body>
+</html>
