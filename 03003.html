@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="he-IL" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>סימולטור זוויות - גרסה מתוקנת</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;700;800&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f2f2;
+            font-family: 'Assistant', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            aspect-ratio: 16 / 9;
+            background-color: #f7f9f9;
+            /* גריד משבצות מדויק */
+            background-image: 
+                linear-gradient(to right, #e2e4e4 1px, transparent 1px), 
+                linear-gradient(to bottom, #e2e4e4 1px, transparent 1px);
+            background-size: 25px 25px;
+            border: 1px solid #d0d0d0;
+            user-select: none;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #drag-handle {
+            cursor: pointer;
+        }
+
+        .point-label {
+            font-size: 32px;
+            font-weight: 800;
+            fill: #3a3a3a;
+        }
+
+        .angle-box-bg {
+            fill: #333333;
+            rx: 15;
+        }
+
+        .angle-text {
+            font-size: 22px;
+            font-weight: 700;
+            fill: #ffffff;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        /* מניעת סימון טקסט */
+        * {
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+<div class="canvas-container">
+    <svg id="simulator" viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg">
+        
+        <!-- קשתות צבעוניות מתחת לקווים -->
+        <path id="arc-red" fill="#c4213d" />
+        <path id="arc-orange" fill="#e28c12" />
+
+        <!-- ציר בסיס AB -->
+        <line id="base-line" x1="160" y1="380" x2="740" y2="380" stroke="#3a3a3a" stroke-width="6" stroke-linecap="round" />
+        
+        <!-- נקודות קצה של הבסיס -->
+        <circle cx="160" cy="380" r="14" fill="#3a3a3a" />
+        <circle cx="740" cy="380" r="14" fill="#3a3a3a" />
+        
+        <!-- תוויות נקודות בסיס -->
+        <text x="130" y="390" class="point-label" text-anchor="end">A</text>
+        <text x="770" y="390" class="point-label">B</text>
+        <text x="450" y="405" class="point-label" text-anchor="middle">C</text>
+
+        <!-- זרוע הזווית CD -->
+        <line id="arm-cd" x1="450" y1="380" x2="450" y2="150" stroke="#3a3a3a" stroke-width="6" stroke-linecap="round" />
+
+        <!-- כפתור גרירה משולב D -->
+        <g id="drag-handle">
+            <!-- כפתור הזזה כחול - מיושר בדיוק בקצה -->
+            <image href="https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/methodica-math-angles-ls02-03003-2/mobile/5fRcbpROLSH_P_564_292_97_352.png" 
+                   x="-65" y="-65" width="130" height="130" />
+            
+            <!-- האות D ממורכזת מעל הכפתור המוגדל -->
+            <text x="0" y="-85" class="point-label" text-anchor="middle">D</text>
+        </g>
+
+        <!-- תיבת תצוגת זווית תחתונה -->
+        <g id="angle-box-group" transform="translate(450, 450)">
+            <rect x="-50" y="-20" width="100" height="40" class="angle-box-bg" />
+            <text id="angle-display" class="angle-text">90°</text>
+        </g>
+    </svg>
+</div>
+
+<script>
+    const svg = document.getElementById('simulator');
+    const armCd = document.getElementById('arm-cd');
+    const dragHandle = document.getElementById('drag-handle');
+    const arcOrange = document.getElementById('arc-orange');
+    const arcRed = document.getElementById('arc-red');
+    const angleDisplay = document.getElementById('angle-display');
+
+    // הגדרות ציר
+    const CX = 450; 
+    const CY = 380; 
+    const RADIUS = 185; 
+    const ARC_RADIUS = 130; 
+
+    let isDragging = false;
+    let currentAngle = 90; 
+
+    function getSVGPoint(e) {
+        const p = svg.createSVGPoint();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        p.x = clientX;
+        p.y = clientY;
+        return p.matrixTransform(svg.getScreenCTM().inverse());
+    }
+
+    function calculateSnappedAngle(svgP) {
+        const dx = svgP.x - CX;
+        const dy = svgP.y - CY;
+        let angle = Math.atan2(-dy, dx) * (180 / Math.PI);
+        
+        if (angle < 0) angle = (dx < 0) ? 180 : 0;
+        
+        const snapStep = 45;
+        return Math.round(angle / snapStep) * snapStep;
+    }
+
+    function updateUI(angle) {
+        const rad = (angle * Math.PI) / 180;
+        const xd = CX + RADIUS * Math.cos(rad);
+        const yd = CY - RADIUS * Math.sin(rad);
+
+        // הארכת המחוג לתוך הכפתור
+        const lineXd = CX + (RADIUS + 45) * Math.cos(rad);
+        const lineYd = CY - (RADIUS + 45) * Math.sin(rad);
+
+        armCd.setAttribute('x2', lineXd);
+        armCd.setAttribute('y2', lineYd);
+        dragHandle.setAttribute('transform', `translate(${xd}, ${yd})`);
+        
+        angleDisplay.textContent = angle + "°";
+
+        drawArcs(angle);
+    }
+
+    function drawArcs(angle) {
+        const rad = (angle * Math.PI) / 180;
+        const endX = CX + ARC_RADIUS * Math.cos(rad);
+        const endY = CY - ARC_RADIUS * Math.sin(rad);
+
+        // קשת כתומה (ימין)
+        if (angle <= 0) {
+            arcOrange.setAttribute('d', '');
+        } else {
+            const startX = CX + ARC_RADIUS;
+            const startY = CY;
+            const dOrange = `M ${CX} ${CY} L ${startX} ${startY} A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 0 ${endX} ${endY} Z`;
+            arcOrange.setAttribute('d', dOrange);
+        }
+
+        // קשת אדומה (שמאל)
+        if (angle >= 180) {
+            arcRed.setAttribute('d', '');
+        } else {
+            // תיקון השגיאה: הסרת השורה עם פקודת MAX הלא מוכרת
+            const dRed = `M ${CX} ${CY} L ${endX} ${endY} A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 0 ${CX - ARC_RADIUS} ${CY} Z`;
+            arcRed.setAttribute('d', dRed);
+        }
+    }
+
+    function startDrag(e) {
+        isDragging = true;
+        handleMove(e);
+        if(e.cancelable) e.preventDefault();
+    }
+
+    function handleMove(e) {
+        if (!isDragging) return;
+        const p = getSVGPoint(e);
+        const newAngle = calculateSnappedAngle(p);
+        if (newAngle !== currentAngle) {
+            currentAngle = newAngle;
+            updateUI(currentAngle);
+        }
+        if(e.cancelable) e.preventDefault();
+    }
+
+    function stopDrag() {
+        isDragging = false;
+    }
+
+    dragHandle.addEventListener('mousedown', startDrag);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', stopDrag);
+
+    dragHandle.addEventListener('touchstart', startDrag, {passive: false});
+    window.addEventListener('touchmove', handleMove, {passive: false});
+    window.addEventListener('touchend', stopDrag);
+
+    updateUI(currentAngle);
+</script>
+
+</body>
+</html>
