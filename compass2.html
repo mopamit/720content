@@ -91,7 +91,7 @@
                 <circle cx="0" cy="0" r="18" fill="rgba(255,255,255,0.4)" filter="blur(2px)"/>
 
                 <!-- קבוצת המחוגים המאוחדת (מסתובבים יחד) -->
-                <g id="needlesGroup" transform="rotate(90)">
+                <g id="needlesGroup" transform="rotate(180)">
                     <!-- אזור אחיזה ולחיצה משותף לשני המחוגים -->
                     <path class="grabber" d="M -20,-70 L 20,-70 L 20,70 L -20,70 Z" />
                     
@@ -121,7 +121,7 @@
         const CENTER_Y = 251;
 
         // --- State ---
-        let currentAngle = 90; // מתחיל מ-90 מעלות (מזרח)
+        let currentAngle = 180; // מתחיל מ-180 מעלות (דרום)
 
         // --- DOM Elements ---
         const centerGroup = document.getElementById('centerGroup');
