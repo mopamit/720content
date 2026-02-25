@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>שעון אינטראקטיבי - הזזת שעות</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* אנימציית סיבוב חלקה למחוג */
+        #redNeedleGroup {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .clickable-area {
+            cursor: pointer;
+        }
+        
+        /* אפקט ריחוף קל כדי להראות שהאזור לחיץ */
+        .clickable-area:hover {
+            box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.15), 0 15px 15px -5px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body class="m-0 p-0 w-full h-screen overflow-hidden bg-transparent flex justify-center items-center">
+
+    <!-- שינוי גודל החלון לקטן יותר ושמירה על יחס הממדים -->
+    <div class="relative w-[350px] aspect-[4/3] flex justify-center items-center rounded-2xl overflow-hidden shadow-xl border border-gray-300 bg-white clickable-area transition-all" id="clockContainer">
+        
+        <!-- אזור ה-SVG שמכיל את התמונה והמחוגים -->
+        <!-- הוספנו pointer-events-none כדי שהקליק ייתפס על ידי ה-div העוטף -->
+        <svg viewBox="0 0 600 450" id="clockSvg" class="w-full h-full object-contain pointer-events-none">
+            
+            <image 
+                href="https://lomdot.education.gov.il/metodica/720active/math/methodica-math-angles-ls01-00071/assets/questions/multichoicespinclockarrow/question-image.png" 
+                x="0" y="0" width="600" height="450" 
+                preserveAspectRatio="xMidYMid slice" 
+                id="bgImage"
+            />
+
+            <!-- קבוצת המרכז - הותאמה למרכז השעון בתמונה (הוזזה ימינה ולמטה) -->
+            <g id="centerGroup" transform="translate(315, 232)">
+                
+                <!-- הצללה קלה למחוגים להפרדה מהרקע -->
+                <circle cx="0" cy="0" r="15" fill="rgba(255,255,255,0.5)" filter="blur(2px)"/>
+
+                <!-- מחוג שחור קבוע (מצביע ל-12, למעלה) -->
+                <g id="blackNeedleGroup">
+                    <line x1="0" y1="0" x2="0" y2="-110" stroke="#333333" stroke-width="6" stroke-linecap="round" />
+                    <polygon points="-8,-100 8,-100 0,-125" fill="#333333" />
+                </g>
+
+                <!-- מחוג אדום מסתובב (מתחיל ב-6, למטה = 180 מעלות) -->
+                <g id="redNeedleGroup" transform="rotate(180)">
+                    <line x1="0" y1="0" x2="0" y2="-80" stroke="#ef4444" stroke-width="6" stroke-linecap="round" />
+                    <polygon points="-8,-70 8,-70 0,-95" fill="#ef4444" />
+                </g>
+                
+                <!-- סיכה מרכזית -->
+                <circle cx="0" cy="0" r="7" fill="#333333" class="pointer-events-none" />
+                <circle cx="0" cy="0" r="3" fill="#fff" class="pointer-events-none" />
+            </g>
+        </svg>
+        
+    </div>
+
+    <script>
+        // --- הגדרות מיקום מרכז השעון בתוך ה-SVG ---
+        // הותאם למיקום הפין המרכזי בתמונת הרקע (ימינה ולמטה)
+        const CENTER_X = 315;
+        const CENTER_Y = 232;
+
+        // --- State ---
+        let redAngle = 180; // מתחיל מ-180 מעלות (שעה 6)
+
+        // --- DOM Elements ---
+        const centerGroup = document.getElementById('centerGroup');
+        const redNeedleGroup = document.getElementById('redNeedleGroup');
+        const clockContainer = document.getElementById('clockContainer');
+
+        // מקם את המרכז על פי ההגדרות
+        centerGroup.setAttribute('transform', `translate(${CENTER_X}, ${CENTER_Y})`);
+
+        // --- Interaction Handling ---
+        function rotateRedNeedle() {
+            // לחיצה מסובבת את המחוג האדום ב-30 מעלות ימינה (שעה אחת קדימה)
+            redAngle += 30;
+            redNeedleGroup.setAttribute('transform', `rotate(${redAngle})`);
+        }
+
+        // --- Event Listeners ---
+        // הוספת אירוע הלחיצה על כל אזור השעון
+        clockContainer.addEventListener('click', rotateRedNeedle);
+
+    </script>
+</body>
+</html>
