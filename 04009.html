@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>משחק מיון זוויות</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- KaTeX for Mathematical Symbols -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Assistant', sans-serif;
+            overflow: hidden;
+            background-color: #f8fafc;
+        }
+        .drag-item {
+            cursor: grab;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            touch-action: none;
+            user-select: none;
+        }
+        .drag-item:active {
+            cursor: grabbing;
+        }
+        .drag-item.dragging {
+            opacity: 0.8;
+            transform: scale(1.05) rotate(3deg);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border-color: #3b82f6;
+            z-index: 100;
+        }
+        .drop-zone {
+            transition: all 0.4s ease;
+        }
+        .drop-zone.drag-over {
+            background-color: rgba(59, 130, 246, 0.08);
+            border-color: #3b82f6;
+            box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.1);
+        }
+        .math-symbol {
+            display: inline-block;
+            direction: ltr;
+        }
+        /* Feedback badges shadow */
+        .feedback-badge {
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- Header Section -->
+    <header class="bg-[#005a8d] text-white p-6 relative pb-16 shadow-2xl z-10">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-3xl font-extrabold mb-3 flex items-center gap-2">
+                לפניכם סרטוטים של זוויות 
+                <span id="math-alpha" class="math-symbol"></span> 
+                ו-
+                <span id="math-beta" class="math-symbol"></span>.
+            </h1>
+            <p class="text-xl opacity-90 font-medium">גררו כל סרטוט לסל המתאים לו לפי סוג הזוויות:</p>
+        </div>
+        
+        <!-- Decoration SVG (Torn Paper Effect) -->
+        <div class="absolute bottom-0 left-0 w-full h-12 pointer-events-none">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" class="w-full h-full fill-[#f8fafc]">
+                <path d="M0,0 L1200,0 L1200,40 C1000,80 800,20 600,60 C400,100 200,40 0,80 Z"></path>
+            </svg>
+        </div>
+    </header>
+
+    <!-- Game Area -->
+    <main class="flex-1 relative p-6 flex flex-col items-center">
+        
+        <!-- Controls Sidebar -->
+        <div class="absolute right-10 top-10 flex flex-col gap-4 z-20">
+            <button id="btn-reset" class="bg-white border-2 border-slate-200 rounded-2xl px-10 py-4 text-xl font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-md active:scale-95">
+                איפוס
+            </button>
+            <button id="btn-hint" class="bg-[#ffaa45] text-white rounded-2xl px-8 py-4 text-xl font-bold hover:bg-orange-500 transition-all shadow-lg flex items-center justify-center gap-3 active:scale-95">
+                אפשר רמז?
+                <img src="https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/svg/bulbGray.svg" alt="bulb" class="w-7 h-7">
+            </button>
+            <button id="btn-check" class="bg-[#ffaa45] text-white rounded-2xl px-10 py-4 text-xl font-bold hover:bg-orange-500 transition-all shadow-lg active:scale-95">
+                צדקתי?
+            </button>
+        </div>
+
+        <!-- Draggable Source Area -->
+        <div id="source-area" class="flex justify-center gap-8 mt-12 mr-64 flex-wrap max-w-5xl">
+            <!-- Items injected here -->
+        </div>
+
+        <!-- Baskets Area -->
+        <div class="absolute bottom-8 left-0 w-full flex justify-center gap-8 px-10">
+            <div class="basket-wrapper flex flex-col items-center w-80" data-category="אחר">
+                <div class="drop-zone min-h-[220px] w-full flex flex-wrap justify-center items-center gap-3 mb-4 p-4 rounded-[2.5rem] border-4 border-dashed border-slate-200 bg-white/50"></div>
+                <div class="relative w-64 h-36 flex flex-col items-center justify-center">
+                    <img src="https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/svg/basket.svg" class="absolute inset-0 w-full h-full drop-shadow-xl">
+                    <span class="relative z-10 font-bold text-[#005a8d] text-2xl mt-14 bg-white/90 px-4 py-1 rounded-full border border-blue-50">אחר</span>
+                </div>
+            </div>
+
+            <div class="basket-wrapper flex flex-col items-center w-80" data-category="זוויות קודקודיות">
+                <div class="drop-zone min-h-[220px] w-full flex flex-wrap justify-center items-center gap-3 mb-4 p-4 rounded-[2.5rem] border-4 border-dashed border-slate-200 bg-white/50"></div>
+                <div class="relative w-64 h-36 flex flex-col items-center justify-center">
+                    <img src="https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/svg/basket.svg" class="absolute inset-0 w-full h-full drop-shadow-xl">
+                    <span class="relative z-10 font-bold text-[#005a8d] text-2xl mt-14 bg-white/90 px-4 py-1 rounded-full border border-blue-50">זוויות קודקודיות</span>
+                </div>
+            </div>
+
+            <div class="basket-wrapper flex flex-col items-center w-80" data-category="זוויות צמודות">
+                <div class="drop-zone min-h-[220px] w-full flex flex-wrap justify-center items-center gap-3 mb-4 p-4 rounded-[2.5rem] border-4 border-dashed border-slate-200 bg-white/50"></div>
+                <div class="relative w-64 h-36 flex flex-col items-center justify-center">
+                    <img src="https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/svg/basket.svg" class="absolute inset-0 w-full h-full drop-shadow-xl">
+                    <span class="relative z-10 font-bold text-[#005a8d] text-2xl mt-14 bg-white/90 px-4 py-1 rounded-full border border-blue-50">זוויות צמודות</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Hint Modal -->
+    <div id="hint-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-50 p-6">
+        <div class="bg-white p-12 rounded-[3rem] border-b-[12px] border-orange-400 shadow-2xl text-center max-w-2xl transform transition-all duration-300 scale-90 opacity-0">
+            <div class="bg-orange-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8">
+                <img src="https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/svg/bulbGray.svg" class="w-14 h-14" alt="bulb">
+            </div>
+            <h2 class="text-4xl font-extrabold mb-8 text-slate-800">רמז קטן למחשבה</h2>
+            <p class="text-2xl leading-relaxed text-slate-700 font-medium">
+                כדאי לשים לב לקשר בין הזוויות: <br/> 
+                <span class="text-blue-600 font-bold">האם הן חולקות שוק?</span> <br/>
+                <span class="text-blue-600 font-bold">האם הן נמצאות זו מול זו?</span> <br/>
+                או שאין ביניהן קשרים כאלה כלל.
+            </p>
+            <button id="close-hint" class="mt-12 bg-[#ffaa45] text-white px-16 py-4 rounded-full font-bold text-2xl hover:bg-orange-500 transition-all shadow-xl active:scale-95">
+                הבנתי, תודה!
+            </button>
+        </div>
+    </div>
+
+    <!-- Error Modal (Detailed Feedback) -->
+    <div id="error-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center z-[60] p-6">
+        <div class="bg-white p-10 rounded-[2.5rem] border-t-[12px] border-red-500 shadow-2xl max-w-4xl max-h-[90vh] overflow-y-auto transform transition-all duration-500 translate-y-20 opacity-0">
+            <h2 class="text-4xl font-black mb-6 text-red-600">טעיתם, לא נורא!</h2>
+            <div class="text-xl leading-relaxed text-slate-700 space-y-4 text-right">
+                <p class="font-bold text-2xl mb-4">כדי למיין נכון את הזוויות, חשוב לזכור:</p>
+                <ul class="list-disc list-inside space-y-2 pr-4">
+                    <li><span class="font-bold text-blue-700">זוויות צמודות</span> חולקות קודקוד משותף ושוק משותפת וסכומן הוא 180°.</li>
+                    <li><span class="font-bold text-blue-700">זוויות קודקודיות</span> נמצאות זו מול זו ונוצרות מחיתוך של שני ישרים.</li>
+                </ul>
+                <p class="mt-4">כאשר התנאים האלה לא מתקיימים, הזוויות שייכות לקבוצת הזוויות שהן לא צמודות ולא קודקודיות. לכן, המיון הנכון הוא:</p>
+                
+                <div class="bg-slate-50 p-6 rounded-2xl mt-8 border-r-4 border-blue-500 shadow-inner">
+                    <p class="font-black text-2xl mb-3 text-blue-800 underline underline-offset-4">המיון הנכון הוא:</p>
+                    <div class="grid grid-cols-2 gap-4 text-xl font-bold">
+                        <p>א. זוויות קודקודיות</p>
+                        <p>ב. זוויות צמודות</p>
+                        <p>ג. זוויות שאינן צמודות ואינן קודקודיות</p>
+                        <p>ד. זוויות שאינן צמודות ואינן קודקודיות</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-center mt-10">
+                <button id="close-error" class="bg-slate-800 text-white px-16 py-4 rounded-full font-bold text-2xl hover:bg-slate-700 transition-all shadow-xl active:scale-95">
+                    ננסה שוב!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="success-toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-green-600 text-white px-10 py-5 rounded-[2rem] shadow-2xl hidden items-center gap-4 transition-all duration-500 translate-y-32">
+        <div class="bg-white/20 rounded-full p-2">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <span class="font-extrabold text-2xl">מצוין! המיון נכון והציון נשמר.</span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const state = {
+            db: null,
+            userId: null,
+            isAuthReady: false,
+            // New items for series 04009
+            items: [
+                { id: 'A', img: "https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/question-images/methodica-math-angles-ls02-04009a.png", category: "זוויות קודקודיות" },
+                { id: 'B', img: "https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/question-images/methodica-math-angles-ls02-04009b.png", category: "זוויות צמודות" },
+                { id: 'C', img: "https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/question-images/methodica-math-angles-ls02-04009c.png", category: "אחר" },
+                { id: 'D', img: "https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/question-images/methodica-math-angles-ls02-04009d.png", category: "אחר" }
+            ],
+            placements: {}, // itemId -> currentCategory
+            isChecked: false
+        };
+
+        const ASSETS = {
+            correct: "https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/svg/correctFeedback.svg",
+            wrong: "https://lomdot.education.gov.il/metodica/720active/math/angles/lesson2/assets/images/svg/wrongFeedbackSecond.svg"
+        };
+
+        // --- Selectors ---
+        const sourceArea = document.getElementById('source-area');
+        const dropZones = document.querySelectorAll('.drop-zone');
+        const btnCheck = document.getElementById('btn-check');
+        const btnReset = document.getElementById('btn-reset');
+        const btnHint = document.getElementById('btn-hint');
+        const hintModal = document.getElementById('hint-modal');
+        const errorModal = document.getElementById('error-modal');
+        const successToast = document.getElementById('success-toast');
+
+        // --- Init ---
+        async function initFirebase() {
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+                const auth = getAuth(app);
+                state.db = db;
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        state.userId = user.uid;
+                        state.isAuthReady = true;
+                    }
+                });
+
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) { console.error("Firebase Error", e); }
+        }
+
+        function renderMath() {
+            if (window.katex) {
+                katex.render("\\alpha", document.getElementById('math-alpha'));
+                katex.render("\\beta", document.getElementById('math-beta'));
+            }
+        }
+
+        function renderItems() {
+            sourceArea.innerHTML = '';
+            state.items.forEach(item => {
+                if (!state.placements[item.id]) {
+                    sourceArea.appendChild(createItemElement(item));
+                }
+            });
+            
+            dropZones.forEach(zone => {
+                const category = zone.parentElement.dataset.category;
+                zone.innerHTML = '';
+                state.items.forEach(item => {
+                    if (state.placements[item.id] === category) {
+                        zone.appendChild(createItemElement(item, true));
+                    }
+                });
+            });
+        }
+
+        function createItemElement(item, isSmall = false) {
+            const div = document.createElement('div');
+            const sizeClasses = isSmall ? 'w-24 h-24 p-2' : 'w-48 h-40 p-4';
+            div.className = `drag-item bg-white rounded-2xl shadow-lg border-2 border-slate-100 flex items-center justify-center relative ${sizeClasses}`;
+            div.draggable = true;
+            div.dataset.id = item.id;
+            
+            const img = document.createElement('img');
+            img.src = item.img;
+            img.className = 'max-w-full max-h-full object-contain pointer-events-none';
+            div.appendChild(img);
+
+            if (state.isChecked && state.placements[item.id]) {
+                const isCorrect = state.placements[item.id] === item.category;
+                const feedbackImg = document.createElement('img');
+                feedbackImg.src = isCorrect ? ASSETS.correct : ASSETS.wrong;
+                feedbackImg.className = 'absolute -top-4 -right-4 w-10 h-10 feedback-badge z-30';
+                div.appendChild(feedbackImg);
+                div.classList.add(isCorrect ? 'border-green-400' : 'border-red-400');
+            }
+
+            div.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', item.id);
+                // Clear drag image or style it
+                setTimeout(() => div.classList.add('dragging'), 0);
+            });
+
+            div.addEventListener('dragend', () => {
+                div.classList.remove('dragging');
+            });
+
+            return div;
+        }
+
+        // --- Interaction Logic ---
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('drag-over');
+            });
+
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                const id = e.dataTransfer.getData('text/plain');
+                const category = zone.parentElement.dataset.category;
+                
+                state.placements[id] = category;
+                state.isChecked = false;
+                renderItems();
+            });
+        });
+
+        btnCheck.addEventListener('click', async () => {
+            const allPlaced = state.items.every(item => state.placements[item.id]);
+            if (!allPlaced) {
+                state.isChecked = true;
+                renderItems();
+                return;
+            }
+
+            state.isChecked = true;
+            renderItems();
+
+            let correctCount = 0;
+            state.items.forEach(item => {
+                if (state.placements[item.id] === item.category) correctCount++;
+            });
+
+            const score = (correctCount / state.items.length) * 100;
+            const isFullyCorrect = correctCount === state.items.length;
+
+            if (isFullyCorrect) {
+                showSuccess();
+            } else {
+                showError();
+            }
+
+            if (state.isAuthReady && state.db) {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'angles-game-v2';
+                const resultRef = doc(state.db, 'artifacts', appId, 'users', state.userId, 'scores', 'latest');
+                await setDoc(resultRef, { score, timestamp: new Date().toISOString() }).catch(console.error);
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            state.placements = {};
+            state.isChecked = false;
+            renderItems();
+        });
+
+        // --- Modal Control ---
+        function showHint() {
+            hintModal.classList.replace('hidden', 'flex');
+            setTimeout(() => {
+                hintModal.querySelector('div').classList.replace('scale-90', 'scale-100');
+                hintModal.querySelector('div').classList.replace('opacity-0', 'opacity-100');
+            }, 50);
+        }
+
+        function hideHint() {
+            hintModal.querySelector('div').classList.replace('scale-100', 'scale-90');
+            hintModal.querySelector('div').classList.replace('opacity-100', 'opacity-0');
+            setTimeout(() => hintModal.classList.replace('flex', 'hidden'), 300);
+        }
+
+        function showError() {
+            errorModal.classList.replace('hidden', 'flex');
+            setTimeout(() => {
+                errorModal.querySelector('div').classList.replace('translate-y-20', 'translate-y-0');
+                errorModal.querySelector('div').classList.replace('opacity-0', 'opacity-100');
+            }, 50);
+        }
+
+        function hideError() {
+            errorModal.querySelector('div').classList.replace('translate-y-0', 'translate-y-20');
+            errorModal.querySelector('div').classList.replace('opacity-100', 'opacity-0');
+            setTimeout(() => errorModal.classList.replace('flex', 'hidden'), 500);
+        }
+
+        function showSuccess() {
+            successToast.classList.remove('hidden');
+            setTimeout(() => successToast.classList.replace('translate-y-32', 'translate-y-0'), 100);
+            setTimeout(() => {
+                successToast.classList.replace('translate-y-0', 'translate-y-32');
+                setTimeout(() => successToast.classList.add('hidden'), 500);
+            }, 4000);
+        }
+
+        btnHint.addEventListener('click', showHint);
+        document.getElementById('close-hint').addEventListener('click', hideHint);
+        document.getElementById('close-error').addEventListener('click', hideError);
+
+        // --- Start ---
+        window.onload = () => {
+            initFirebase();
+            renderMath();
+            renderItems();
+        };
+    </script>
+</body>
+</html>
